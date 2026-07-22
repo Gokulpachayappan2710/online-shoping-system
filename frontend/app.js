@@ -1,9 +1,3 @@
-// frontend/app.js
-// Simple static search + navigation demo for the online shopping system.
-// - In-memory sample products (replace with API calls as needed)
-// - Search with debounce, category filtering, basic sorting
-// - Keyboard navigation (up/down/enter)
-
 const sampleProducts = [
   {id:1,name:'Classic White Sneakers',category:'Shoes',price:59.99,image:''},
   {id:2,name:'Running Pro Shoes',category:'Shoes',price:89.00,image:''},
@@ -27,58 +21,65 @@ const state = {
   focusedIndex: -1
 };
 
-// DOM refs
-const searchInput = document.getElementById('search-input');
-const resultsEl = document.getElementById('results');
-const categoryListEl = document.getElementById('category-list');
-const sortSelect = document.getElementById('sort-select');
+// Global handles initialized securely upon DOM availability
+let searchInput, resultsEl, categoryListEl, sortSelect;
 
-function init(){
+function init() {
   renderCategories();
   applyFilters();
   attachListeners();
 }
 
-function uniqueCategories(){
-  const cats = Array.from(new Set(sampleProducts.map(p=>p.category))).sort();
+function uniqueCategories() {
+  const cats = Array.from(new Set(sampleProducts.map(p => p.category))).sort();
   return ['All', ...cats];
 }
 
-function renderCategories(){
+function renderCategories() {
   const cats = uniqueCategories();
   categoryListEl.innerHTML = '';
+  
   cats.forEach(cat => {
     const li = document.createElement('li');
     li.textContent = cat;
     li.tabIndex = 0;
-    li.setAttribute('role','button');
-    if(cat === state.category) li.classList.add('active');
-    li.addEventListener('click',()=>{ state.category = cat; state.focusedIndex = -1; renderCategories(); applyFilters(); });
-    li.addEventListener('keydown',(e)=>{ if(e.key==='Enter') { li.click(); } });
+    li.setAttribute('role', 'button');
+    if (cat === state.category) li.classList.add('active');
+    
+    li.addEventListener('click', () => { 
+      state.category = cat; 
+      state.focusedIndex = -1; 
+      renderCategories(); 
+      applyFilters(); 
+    });
+    
+    li.addEventListener('keydown', (e) => { 
+      if (e.key === 'Enter') { li.click(); } 
+    });
+    
     categoryListEl.appendChild(li);
   });
 }
 
-function applyFilters(){
+function applyFilters() {
   const q = state.query.trim().toLowerCase();
   let filtered = sampleProducts.filter(p => {
-    if(state.category !== 'All' && p.category !== state.category) return false;
-    if(!q) return true;
+    if (state.category !== 'All' && p.category !== state.category) return false;
+    if (!q) return true;
     return p.name.toLowerCase().includes(q) || (p.category && p.category.toLowerCase().includes(q));
   });
 
-  if(state.sort === 'price-asc') filtered.sort((a,b)=>a.price-b.price);
-  else if(state.sort === 'price-desc') filtered.sort((a,b)=>b.price-a.price);
-  // relevance: keep original order (sample data)
+  if (state.sort === 'price-asc') filtered.sort((a, b) => a.price - b.price);
+  else if (state.sort === 'price-desc') filtered.sort((a, b) => b.price - a.price);
 
   state.results = filtered;
   state.focusedIndex = -1;
   renderResults();
 }
 
-function renderResults(){
+function renderResults() {
   resultsEl.innerHTML = '';
-  if(state.results.length === 0){
+  if (state.results.length === 0) {
     resultsEl.innerHTML = '<div class="result-empty">No products found.</div>';
     return;
   }
@@ -87,12 +88,11 @@ function renderResults(){
     const card = document.createElement('article');
     card.className = 'card';
     card.tabIndex = 0;
-    card.setAttribute('role','button');
+    card.setAttribute('role', 'button');
     card.dataset.index = idx;
 
     const img = document.createElement('img');
     img.alt = p.name;
-    // placeholder colored box when no image
     img.src = generatePlaceholder(p.name, idx);
 
     const title = document.createElement('div');
@@ -112,17 +112,23 @@ function renderResults(){
     card.appendChild(meta);
     card.appendChild(price);
 
-    card.addEventListener('click',()=>{ alert(`Open product: ${p.name} (id: ${p.id})`); });
-    card.addEventListener('focus',()=>{ setFocusedIndex(idx); });
+    card.addEventListener('click', () => { 
+      alert(`Open product: ${p.name} (id: ${p.id})`); 
+    });
+    
+    card.addEventListener('focus', () => { 
+      setFocusedIndex(idx); 
+    });
 
     resultsEl.appendChild(card);
   });
 }
 
-function setFocusedIndex(i){
+function setFocusedIndex(i) {
   const cards = resultsEl.querySelectorAll('.card');
-  cards.forEach(c=>c.classList.remove('focused'));
-  if(i>=0 && i<cards.length){
+  cards.forEach(c => c.classList.remove('focused'));
+  
+  if (i >= 0 && i < cards.length) {
     cards[i].classList.add('focused');
     cards[i].focus();
     state.focusedIndex = i;
@@ -132,33 +138,50 @@ function setFocusedIndex(i){
   }
 }
 
-function attachListeners(){
+function attachListeners() {
   let debounceTimer = null;
-  searchInput.addEventListener('input',(e)=>{
+  
+  searchInput.addEventListener('input', (e) => {
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(()=>{
+    debounceTimer = setTimeout(() => {
       state.query = e.target.value;
       applyFilters();
-    },300);
+    }, 300);
   });
 
-  sortSelect.addEventListener('change',(e)=>{ state.sort = e.target.value; applyFilters(); });
+  sortSelect.addEventListener('change', (e) => { 
+    state.sort = e.target.value; 
+    applyFilters(); 
+  });
 
-  // keyboard navigation: up/down/enter
-  document.addEventListener('keydown',(e)=>{
+  document.addEventListener('keydown', (e) => {
     const cards = resultsEl.querySelectorAll('.card');
-    if(e.key === 'ArrowDown'){
+    if (cards.length === 0) return;
+
+    // Prevents keystrokes inside search box from accidentally breaking focus context
+    if (document.activeElement === searchInput) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setFocusedIndex(0);
+      }
+      return;
+    }
+
+    if (e.key === 'ArrowDown') {
       e.preventDefault();
-      if(cards.length === 0) return;
       const next = Math.min(state.focusedIndex + 1, cards.length - 1);
       setFocusedIndex(next);
-    } else if(e.key === 'ArrowUp'){
+    } else if (e.key === 'ArrowUp') {
       e.preventDefault();
-      if(cards.length === 0) return;
-      const prev = Math.max(state.focusedIndex - 1, 0);
-      setFocusedIndex(prev);
-    } else if(e.key === 'Enter'){
-      if(state.focusedIndex >= 0 && state.focusedIndex < state.results.length){
+      const prev = state.focusedIndex - 1;
+      if (prev < 0) {
+        setFocusedIndex(-1); // Seamlessly return focus to search bar
+      } else {
+        setFocusedIndex(prev);
+      }
+    } else if (e.key === 'Enter') {
+      if (state.focusedIndex >= 0 && state.focusedIndex < state.results.length) {
+        e.preventDefault();
         const p = state.results[state.focusedIndex];
         alert(`Open product: ${p.name} (id: ${p.id})`);
       }
@@ -166,14 +189,26 @@ function attachListeners(){
   });
 }
 
-function generatePlaceholder(text, idx){
-  // generate a tiny SVG data URL with colored background and initials
-  const colors = ['#fee2e2','#e0f2fe','#ecfdf5','#fff7ed','#fef3c7','#ede9fe'];
+function generatePlaceholder(text, idx) {
+  const colors = ['#fee2e2', '#e0f2fe', '#ecfdf5', '#fff7ed', '#fef3c7', '#ede9fe'];
   const bg = colors[idx % colors.length];
-  const initials = text.split(' ').slice(0,2).map(w=>w[0]).join('').toUpperCase();
-  const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='400' height='300'><rect width='100%' height='100%' fill='${bg}'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='40' fill='#111'>${initials}</text></svg>`;
+  const initials = text.split(' ').slice(0, 2).map(w => w[0]).join('').toUpperCase();
+  const svg = `<svg xmlns='http://w3.org' width='400' height='300'><rect width='100%' height='100%' fill='${bg}'/><text x='50%' y='55%' dominant-baseline='middle' text-anchor='middle' font-family='Arial' font-size='40' fill='#111'>${initials}</text></svg>`;
   return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
 }
 
-// Init
-init();
+// Ensure DOM tree initialization safety guard
+document.addEventListener('DOMContentLoaded', () => {
+  searchInput = document.getElementById('search-input');
+  resultsEl = document.getElementById('results');
+  categoryListEl = document.getElementById('category-list');
+  sortSelect = document.getElementById('sort-select');
+
+  if (!searchInput || !resultsEl || !categoryListEl || !sortSelect) {
+    console.error("Initialization Error: HTML DOM nodes are missing or improperly assigned.");
+    return;
+  }
+  
+  init();
+});
+
